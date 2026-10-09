@@ -61,7 +61,11 @@ pub fn connect_openvpn(
     if !elevate::is_elevated() {
         return Err("ELEVATION_REQUIRED".into());
     }
-    let handle = OvpnHandle::start(&text, resource_file(&app, "openvpn.exe"))?;
+    let handle = OvpnHandle::start(
+        &text,
+        resource_file(&app, "openvpn.exe"),
+        resource_file(&app, "wintun.dll"),
+    )?;
     let mut guard = state.ovpn.lock().map_err(|_| "state lock poisoned".to_string())?;
     if let Some(mut old) = guard.take() {
         old.stop();

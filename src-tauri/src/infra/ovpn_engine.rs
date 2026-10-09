@@ -4,6 +4,23 @@ use std::process::{Child, Command, Stdio};
 use std::sync::{mpsc, Arc, Mutex};
 use std::time::{Duration, Instant};
 
+const ADAPTER_NAME: &str = "RikaVPN OVPN";
+
+fn ensure_wintun_adapter(wintun_path: Option<PathBuf>) -> Result<(), String> {
+    let dll = wintun_path.ok_or("لم يتم العثور على wintun.dll")?;
+    if !dll.exists() {
+        return Err("لم يتم العثور على wintun.dll".into());
+    }
+    let wintun = unsafe { wintun::load_from_path(&dll) }
+        .map_err(|e| format!("فشل تحميل wintun.dll: {e}"))?;
+    if wintun::Adapter::open(&wintun, ADAPTER_NAME).is_ok() {
+        return Ok(());
+    }
+    wintun::Adapter::create(&wintun, ADAPTER_NAME, ADAPTER_NAME, None)
+        .map_err(|e| format!("فشل إنشاء محوّل Wintun: {e}"))?;
+    Ok(())
+}
+
 pub struct OvpnHandle {
     child: Arc<Mutex<Option<Child>>>,
     config_path: PathBuf,
@@ -36,8 +53,13 @@ fn find_openvpn(preferred: Option<PathBuf>) -> Option<PathBuf> {
 }
 
 impl OvpnHandle {
-    pub fn start(text: &str, preferred: Option<PathBuf>) -> Result<OvpnHandle, String> {
+    pub fn start(
+        text: &str,
+        preferred: Option<PathBuf>,
+        wintun_path: Option<PathBuf>,
+    ) -> Result<OvpnHandle, String> {
         let bin = find_openvpn(preferred).ok_or_else(|| "OPENVPN_MISSING".to_string())?;
+        ensure_wintun_adapter(wintun_path)?;
         let dir = std::env::temp_dir().join("rikavpn");
         std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
         let config_path = dir.join("client.ovpn");
@@ -49,7 +71,9 @@ impl OvpnHandle {
             .arg("--config")
             .arg(&config_path)
             .arg("--windows-driver")
-            .arg("wintun");
+            .arg("wintun")
+            .arg("--dev-node")
+            .arg(ADAPTER_NAME);
         command.stdout(Stdio::piped()).stderr(Stdio::piped());
         if let Some(d) = working_dir {
             command.current_dir(d);
