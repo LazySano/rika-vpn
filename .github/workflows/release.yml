@@ -34,17 +34,21 @@ jobs:
       - name: Signing key check
         shell: pwsh
         run: |
-          $len = "$env:TAURI_SIGNING_PRIVATE_KEY".Length
-          "TAURI_SIGNING_PRIVATE_KEY length = $len (expected 348)" | Out-File -Append -Encoding utf8 $env:GITHUB_STEP_SUMMARY
+          $k = "$env:TAURI_SIGNING_PRIVATE_KEY"
+          $bytes = [Text.Encoding]::UTF8.GetBytes($k.Trim())
+          $hash = ([BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash($bytes))).Replace("-", "").ToLower()
+          $pwlen = "$env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD".Length
+          Write-Output "::error title=SigningKeyCheck::keylen=$($k.Length) keyhash=$hash pwlen=$pwlen"
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
       - name: Build and publish release
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: rika2026
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "RikaVPN ${{ github.ref_name }}"
