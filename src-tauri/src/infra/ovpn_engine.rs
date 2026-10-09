@@ -1,6 +1,8 @@
+use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
-use std::sync::{Arc, Mutex};
+use std::sync::{mpsc, Arc, Mutex};
+use std::time::{Duration, Instant};
 
 pub struct OvpnHandle {
     child: Arc<Mutex<Option<Child>>>,
@@ -47,17 +49,87 @@ impl OvpnHandle {
             .arg("--config")
             .arg(&config_path)
             .arg("--windows-driver")
-            .arg("wintun")
-            .stdout(Stdio::null())
-            .stderr(Stdio::null());
-        if let Some(dir) = working_dir {
-            command.current_dir(dir);
+            .arg("wintun");
+        if !text.to_ascii_lowercase().contains("redirect-gateway") {
+            command.arg("--redirect-gateway").arg("def1");
         }
-        let child = command
+        command.stdout(Stdio::piped()).stderr(Stdio::piped());
+        if let Some(d) = working_dir {
+            command.current_dir(d);
+        }
+
+        let mut child = command
             .spawn()
             .map_err(|e| format!("فشل تشغيل OpenVPN: {e}"))?;
 
-        tracing::info!("OpenVPN process started");
+        let stdout = child.stdout.take();
+        let stderr = child.stderr.take();
+        let (tx, rx) = mpsc::channel::<String>();
+
+        if let Some(out) = stdout {
+            let tx = tx.clone();
+            std::thread::spawn(move || {
+                for line in BufReader::new(out).lines().map_while(Result::ok) {
+                    let _ = tx.send(line);
+                }
+            });
+        }
+        if let Some(err) = stderr {
+            let tx = tx.clone();
+            std::thread::spawn(move || {
+                for line in BufReader::new(err).lines().map_while(Result::ok) {
+                    let _ = tx.send(line);
+                }
+            });
+        }
+
+        let started = Instant::now();
+        let mut tail: Vec<String> = Vec::new();
+        loop {
+            match rx.recv_timeout(Duration::from_millis(500)) {
+                Ok(line) => {
+                    tracing::info!(target: "openvpn", "{line}");
+                    let low = line.to_ascii_lowercase();
+                    if line.contains("Initialization Sequence Completed") {
+                        break;
+                    }
+                    if low.contains("fatal")
+                        || low.contains("cannot open")
+                        || low.contains("exiting due to")
+                        || low.contains("error: ")
+                    {
+                        let _ = child.kill();
+                        return Err(format!("فشل OpenVPN: {line}"));
+                    }
+                    tail.push(line);
+                    if tail.len() > 25 {
+                        tail.remove(0);
+                    }
+                }
+                Err(mpsc::RecvTimeoutError::Timeout) => {}
+                Err(mpsc::RecvTimeoutError::Disconnected) => {
+                    return Err(format!("توقف OpenVPN. آخر السجل:\n{}", tail.join("\n")));
+                }
+            }
+            if let Ok(Some(_)) = child.try_wait() {
+                return Err(format!("توقف OpenVPN مبكرًا. آخر السجل:\n{}", tail.join("\n")));
+            }
+            if started.elapsed() > Duration::from_secs(45) {
+                let _ = child.kill();
+                return Err(format!(
+                    "انتهت مهلة الاتصال بـ OpenVPN. آخر السجل:\n{}",
+                    tail.join("\n")
+                ));
+            }
+        }
+
+        std::thread::spawn(move || {
+            while let Ok(line) = rx.recv() {
+                tracing::info!(target: "openvpn", "{line}");
+            }
+        });
+
+        tracing::info!("OpenVPN connected");
 
         Ok(OvpnHandle {
             child: Arc::new(Mutex::new(Some(child))),
