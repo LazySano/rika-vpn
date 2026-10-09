@@ -64,7 +64,7 @@ fn respond(stream: &mut std::net::TcpStream, body: &str) {
     let _ = stream.flush();
 }
 
-pub fn login(client_id: &str) -> Result<GoogleUser, String> {
+pub fn login(client_id: &str, client_secret: &str) -> Result<GoogleUser, String> {
     if client_id.trim().is_empty() {
         return Err("GOOGLE_CLIENT_ID_MISSING".into());
     }
@@ -105,6 +105,7 @@ pub fn login(client_id: &str) -> Result<GoogleUser, String> {
 
     let token_response = ureq::post("https://oauth2.googleapis.com/token").send_form(&[
         ("client_id", client_id),
+        ("client_secret", client_secret),
         ("code", code.as_str()),
         ("code_verifier", verifier.as_str()),
         ("grant_type", "authorization_code"),

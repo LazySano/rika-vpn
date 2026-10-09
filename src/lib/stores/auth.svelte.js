@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { load, save } from "./storage.js";
-import { GOOGLE_CLIENT_ID } from "../config.js";
+import { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET } from "../config.js";
 
 export const auth = $state({
   session: load("rika-session", null),
@@ -35,7 +35,10 @@ export async function loginWithGoogle() {
   auth.error = null;
   auth.busy = true;
   try {
-    const user = await invoke("google_login", { clientId: GOOGLE_CLIENT_ID });
+    const user = await invoke("google_login", {
+      clientId: GOOGLE_CLIENT_ID,
+      clientSecret: GOOGLE_CLIENT_SECRET,
+    });
     auth.busy = false;
     setSession({
       id: "g_" + user.sub,

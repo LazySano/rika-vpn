@@ -69,8 +69,8 @@ pub fn disconnect(state: tauri::State<AppState>) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn google_login(client_id: String) -> Result<GoogleUser, String> {
-    google_auth::login(&client_id)
+pub fn google_login(client_id: String, client_secret: String) -> Result<GoogleUser, String> {
+    google_auth::login(&client_id, &client_secret)
 }
 
 #[tauri::command]

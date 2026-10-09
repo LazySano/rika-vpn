@@ -31,6 +31,12 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Write Google config
+        shell: pwsh
+        run: |
+          Set-Content -Encoding utf8 src/lib/config.js "export const GOOGLE_CLIENT_ID = '${{ secrets.GOOGLE_CLIENT_ID }}';"
+          Add-Content -Encoding utf8 src/lib/config.js "export const GOOGLE_CLIENT_SECRET = '${{ secrets.GOOGLE_CLIENT_SECRET }}';"
+
       - name: Signing key check
         shell: pwsh
         run: |

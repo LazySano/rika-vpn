@@ -1,5 +1,6 @@
 .DS_Store
 node_modules
+src/lib/config.js
 /dist
 /build
 /src-tauri/target
