@@ -1,6 +1,6 @@
 [package]
 name = "rika-vpn"
-version = "0.1.4"
+version = "0.1.5"
 description = "RikaVPN - Modern Arabic VPN client for Windows"
 authors = ["LazySano <https://x.com/lazysanosky>"]
 edition = "2021"
@@ -31,6 +31,8 @@ windows-sys = { version = "0.52", features = [
     "Win32_Foundation",
     "Win32_NetworkManagement_IpHelper",
     "Win32_NetworkManagement_Ndis",
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging",
 ] }
 ureq = { version = "2", features = ["json"] }
 sha2 = "0.10"

@@ -15,10 +15,28 @@ fn b64url(data: &[u8]) -> String {
     base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(data)
 }
 
+#[cfg(windows)]
 fn open_browser(url: &str) {
-    let _ = std::process::Command::new("cmd")
-        .args(["/C", "start", "", url])
-        .spawn();
+    use windows_sys::Win32::Foundation::HWND;
+    use windows_sys::Win32::UI::Shell::ShellExecuteW;
+    use windows_sys::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+    let operation: Vec<u16> = "open\0".encode_utf16().collect();
+    let file: Vec<u16> = url.encode_utf16().chain(std::iter::once(0)).collect();
+    unsafe {
+        ShellExecuteW(
+            0 as HWND,
+            operation.as_ptr(),
+            file.as_ptr(),
+            std::ptr::null(),
+            std::ptr::null(),
+            SW_SHOWNORMAL,
+        );
+    }
+}
+
+#[cfg(not(windows))]
+fn open_browser(url: &str) {
+    let _ = std::process::Command::new("xdg-open").arg(url).spawn();
 }
 
 fn extract_param(request: &str, key: &str) -> Option<String> {
@@ -85,17 +103,21 @@ pub fn login(client_id: &str) -> Result<GoogleUser, String> {
     let code = extract_param(&request, "code").ok_or("لم يتم استلام رمز التفويض")?;
     respond(&mut stream, SUCCESS_PAGE);
 
-    let token_json: serde_json::Value = ureq::post("https://oauth2.googleapis.com/token")
-        .send_form(&[
-            ("client_id", client_id),
-            ("code", code.as_str()),
-            ("code_verifier", verifier.as_str()),
-            ("grant_type", "authorization_code"),
-            ("redirect_uri", redirect.as_str()),
-        ])
-        .map_err(|e| format!("فشل تبادل الرمز: {e}"))?
-        .into_json()
-        .map_err(|e| e.to_string())?;
+    let token_response = ureq::post("https://oauth2.googleapis.com/token").send_form(&[
+        ("client_id", client_id),
+        ("code", code.as_str()),
+        ("code_verifier", verifier.as_str()),
+        ("grant_type", "authorization_code"),
+        ("redirect_uri", redirect.as_str()),
+    ]);
+    let token_json: serde_json::Value = match token_response {
+        Ok(resp) => resp.into_json().map_err(|e| e.to_string())?,
+        Err(ureq::Error::Status(status, resp)) => {
+            let body = resp.into_string().unwrap_or_default();
+            return Err(format!("تبادل الرمز ({status}): {body}"));
+        }
+        Err(e) => return Err(format!("تبادل الرمز: {e}")),
+    };
 
     let access = token_json["access_token"]
         .as_str()
