@@ -4,7 +4,7 @@ OpenVPN (openvpn.exe and its shared libraries)
   Copyright (C) 2002-2026 OpenVPN Inc.
   License: GNU General Public License v2 (GPL-2.0)
   Source: https://github.com/OpenVPN/openvpn
-  Version: 2.7.8
+  Version: 2.6.13
   The complete corresponding source code is available at the URL above.
   Components: openvpn.exe, libcrypto-3-x64.dll, libssl-3-x64.dll,
   libpkcs11-helper-1.dll, libopenvpn_plap.dll, vcruntime140.dll

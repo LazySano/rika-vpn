@@ -50,9 +50,6 @@ impl OvpnHandle {
             .arg(&config_path)
             .arg("--windows-driver")
             .arg("wintun");
-        if !text.to_ascii_lowercase().contains("redirect-gateway") {
-            command.arg("--redirect-gateway").arg("def1");
-        }
         command.stdout(Stdio::piped()).stderr(Stdio::piped());
         if let Some(d) = working_dir {
             command.current_dir(d);

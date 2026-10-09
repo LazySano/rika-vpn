@@ -1,6 +1,6 @@
 [package]
 name = "rika-vpn"
-version = "0.1.9"
+version = "0.2.0"
 description = "RikaVPN - Modern Arabic VPN client for Windows"
 authors = ["LazySano <https://x.com/lazysanosky>"]
 edition = "2021"
