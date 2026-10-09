@@ -1,0 +1,78 @@
+@import "@fontsource-variable/cairo";
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --surface: #ffffff;
+  --surface-2: #f4f5fa;
+  --ink: #14162b;
+  --muted: #8b90a8;
+  --line: #eceef5;
+  --brand-soft: #ece9ff;
+  color-scheme: light;
+}
+
+:root.dark {
+  --surface: #161c2e;
+  --surface-2: #0c1120;
+  --ink: #eef1f8;
+  --muted: #8b93ad;
+  --line: #242c42;
+  --brand-soft: #221f45;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-brand: #6c5ce7;
+  --color-brand-hover: #5a49d6;
+  --color-brand-soft: var(--brand-soft);
+  --color-danger: #ff3b6b;
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --font-arabic: "Cairo Variable", "Cairo", "Segoe UI", Tahoma, sans-serif;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--font-arabic);
+}
+
+#app {
+  height: 100vh;
+}
+
+#world-map {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--muted) 40%, transparent);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@keyframes rika-pulse {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
