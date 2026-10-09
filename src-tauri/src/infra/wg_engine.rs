@@ -36,12 +36,18 @@ pub struct EngineHandle {
     thread: Option<JoinHandle<()>>,
 }
 
-fn find_wintun() -> Result<std::path::PathBuf, String> {
+fn find_wintun(preferred: Option<std::path::PathBuf>) -> Result<std::path::PathBuf, String> {
+    if let Some(p) = preferred {
+        if p.exists() {
+            return Ok(p);
+        }
+    }
     if let Ok(exe) = std::env::current_exe() {
         if let Some(dir) = exe.parent() {
-            let candidate = dir.join("wintun.dll");
-            if candidate.exists() {
-                return Ok(candidate);
+            for candidate in [dir.join("wintun.dll"), dir.join("openvpn").join("wintun.dll")] {
+                if candidate.exists() {
+                    return Ok(candidate);
+                }
             }
         }
     }
@@ -49,7 +55,7 @@ fn find_wintun() -> Result<std::path::PathBuf, String> {
     if local.exists() {
         return Ok(local);
     }
-    Err("لم يتم العثور على wintun.dll بجوار التطبيق".into())
+    Err("لم يتم العثور على wintun.dll".into())
 }
 
 fn run_cmd(program: &str, args: &[&str]) -> bool {
@@ -101,8 +107,11 @@ fn add_route(prefix: &str, if_index: u32) -> Option<String> {
 }
 
 impl EngineHandle {
-    pub fn start(cfg: WgConfig) -> Result<EngineHandle, String> {
-        let dll = find_wintun()?;
+    pub fn start(
+        cfg: WgConfig,
+        wintun_path: Option<std::path::PathBuf>,
+    ) -> Result<EngineHandle, String> {
+        let dll = find_wintun(wintun_path)?;
         let wintun = unsafe { wintun::load_from_path(&dll) }
             .map_err(|e| format!("فشل تحميل wintun.dll: {e}"))?;
 

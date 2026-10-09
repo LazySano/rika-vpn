@@ -7,12 +7,18 @@ pub struct OvpnHandle {
     config_path: PathBuf,
 }
 
-fn find_openvpn() -> Option<PathBuf> {
+fn find_openvpn(preferred: Option<PathBuf>) -> Option<PathBuf> {
+    if let Some(p) = preferred {
+        if p.exists() {
+            return Some(p);
+        }
+    }
     if let Ok(exe) = std::env::current_exe() {
         if let Some(dir) = exe.parent() {
-            let candidate = dir.join("openvpn.exe");
-            if candidate.exists() {
-                return Some(candidate);
+            for candidate in [dir.join("openvpn.exe"), dir.join("openvpn").join("openvpn.exe")] {
+                if candidate.exists() {
+                    return Some(candidate);
+                }
             }
         }
     }
@@ -28,18 +34,26 @@ fn find_openvpn() -> Option<PathBuf> {
 }
 
 impl OvpnHandle {
-    pub fn start(text: &str) -> Result<OvpnHandle, String> {
-        let bin = find_openvpn().ok_or_else(|| "OPENVPN_MISSING".to_string())?;
+    pub fn start(text: &str, preferred: Option<PathBuf>) -> Result<OvpnHandle, String> {
+        let bin = find_openvpn(preferred).ok_or_else(|| "OPENVPN_MISSING".to_string())?;
         let dir = std::env::temp_dir().join("rikavpn");
         std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
         let config_path = dir.join("client.ovpn");
         std::fs::write(&config_path, text).map_err(|e| e.to_string())?;
 
-        let child = Command::new(&bin)
+        let working_dir = bin.parent().map(|p| p.to_path_buf());
+        let mut command = Command::new(&bin);
+        command
             .arg("--config")
             .arg(&config_path)
+            .arg("--windows-driver")
+            .arg("wintun")
             .stdout(Stdio::null())
-            .stderr(Stdio::null())
+            .stderr(Stdio::null());
+        if let Some(dir) = working_dir {
+            command.current_dir(dir);
+        }
+        let child = command
             .spawn()
             .map_err(|e| format!("فشل تشغيل OpenVPN: {e}"))?;
 

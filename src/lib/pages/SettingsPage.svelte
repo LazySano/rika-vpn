@@ -40,13 +40,22 @@
     if (!file) return;
     const text = await file.text();
     let protocol = null;
+    let geo = null;
     try {
       const meta = await invoke("parse_profile", { name: file.name, text });
       protocol = meta.protocol;
+      if (meta.endpoint) {
+        const host = meta.endpoint.split(":")[0];
+        try {
+          geo = await invoke("geoip", { host });
+        } catch {
+          geo = null;
+        }
+      }
     } catch {
       protocol = null;
     }
-    lastImported = importConfig(file.name, text, protocol);
+    lastImported = importConfig(file.name, text, protocol, geo);
     event.target.value = "";
   }
 

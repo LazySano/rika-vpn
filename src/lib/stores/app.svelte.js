@@ -63,13 +63,17 @@ export function selectCountry(code) {
   if (found) useServer(found);
 }
 
-export function importConfig(name, text, protocol) {
+export function importConfig(name, text, protocol, geo) {
+  const cc = geo && geo.country_code ? geo.country_code.toLowerCase() : null;
   const profile = {
     id: newId(),
     name: name || "ملف بدون اسم",
     protocol: protocol || detectProtocol(text),
     text,
     importedAt: Date.now(),
+    code: cc,
+    city: geo && geo.city ? geo.city : null,
+    flag: cc ? `https://flagcdn.com/w40/${cc}.png` : null,
   };
   app.profiles = [profile, ...app.profiles];
   save("rika-profiles", app.profiles);
@@ -94,11 +98,11 @@ export function selectProfile(id) {
   const p = app.profiles.find((x) => x.id === id);
   if (!p) return;
   useServer({
-    code: "custom",
+    code: p.code || "custom",
     profileId: p.id,
     country: p.name,
-    city: protocolLabel(p.protocol),
-    flag: null,
+    city: p.city || protocolLabel(p.protocol),
+    flag: p.flag || null,
   });
 }
 

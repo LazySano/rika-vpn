@@ -2,11 +2,20 @@ use crate::app::state::AppState;
 use crate::core::profile::{self, ProfileMeta};
 use crate::core::wg_config;
 use crate::infra::elevate;
+use crate::infra::geoip::{self, GeoInfo};
 use crate::infra::google_auth::{self, GoogleUser};
 use crate::infra::net_monitor::{self, NetCounters, ProbeResult};
 use crate::infra::ovpn_engine::OvpnHandle;
 use crate::infra::system;
 use crate::infra::wg_engine::{EngineHandle, EngineInfo, EngineStats};
+use tauri::Manager;
+
+fn resource_file(app: &tauri::AppHandle, name: &str) -> Option<std::path::PathBuf> {
+    app.path()
+        .resource_dir()
+        .ok()
+        .map(|dir| dir.join("openvpn").join(name))
+}
 
 #[tauri::command]
 pub fn parse_profile(name: Option<String>, text: String) -> Result<ProfileMeta, String> {
@@ -24,12 +33,16 @@ pub fn relaunch_elevated() -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn connect_wireguard(state: tauri::State<AppState>, text: String) -> Result<EngineInfo, String> {
+pub fn connect_wireguard(
+    app: tauri::AppHandle,
+    state: tauri::State<AppState>,
+    text: String,
+) -> Result<EngineInfo, String> {
     if !elevate::is_elevated() {
         return Err("ELEVATION_REQUIRED".into());
     }
     let cfg = wg_config::parse(&text)?;
-    let handle = EngineHandle::start(cfg)?;
+    let handle = EngineHandle::start(cfg, resource_file(&app, "wintun.dll"))?;
     let info = handle.info();
     let mut guard = state.engine.lock().map_err(|_| "state lock poisoned".to_string())?;
     if let Some(mut old) = guard.take() {
@@ -40,11 +53,15 @@ pub fn connect_wireguard(state: tauri::State<AppState>, text: String) -> Result<
 }
 
 #[tauri::command]
-pub fn connect_openvpn(state: tauri::State<AppState>, text: String) -> Result<String, String> {
+pub fn connect_openvpn(
+    app: tauri::AppHandle,
+    state: tauri::State<AppState>,
+    text: String,
+) -> Result<String, String> {
     if !elevate::is_elevated() {
         return Err("ELEVATION_REQUIRED".into());
     }
-    let handle = OvpnHandle::start(&text)?;
+    let handle = OvpnHandle::start(&text, resource_file(&app, "openvpn.exe"))?;
     let mut guard = state.ovpn.lock().map_err(|_| "state lock poisoned".to_string())?;
     if let Some(mut old) = guard.take() {
         old.stop();
@@ -71,6 +88,11 @@ pub fn disconnect(state: tauri::State<AppState>) -> Result<(), String> {
 #[tauri::command]
 pub fn google_login(client_id: String, client_secret: String) -> Result<GoogleUser, String> {
     google_auth::login(&client_id, &client_secret)
+}
+
+#[tauri::command]
+pub fn geoip(host: String) -> Result<GeoInfo, String> {
+    geoip::lookup(&host)
 }
 
 #[tauri::command]

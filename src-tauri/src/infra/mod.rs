@@ -1,4 +1,5 @@
 pub mod elevate;
+pub mod geoip;
 pub mod google_auth;
 pub mod net_monitor;
 pub mod ovpn_engine;

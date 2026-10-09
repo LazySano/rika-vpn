@@ -1,0 +1,20 @@
+RikaVPN bundles the following third-party components for OpenVPN support.
+
+OpenVPN (openvpn.exe and its shared libraries)
+  Copyright (C) 2002-2026 OpenVPN Inc.
+  License: GNU General Public License v2 (GPL-2.0)
+  Source: https://github.com/OpenVPN/openvpn
+  Version: 2.7.8
+  The complete corresponding source code is available at the URL above.
+  Components: openvpn.exe, libcrypto-3-x64.dll, libssl-3-x64.dll,
+  libpkcs11-helper-1.dll, libopenvpn_plap.dll, vcruntime140.dll
+
+OpenSSL (libcrypto / libssl)
+  License: Apache-2.0. Source: https://www.openssl.org/
+
+Wintun
+  Copyright (C) 2018-2026 WireGuard LLC. All Rights Reserved.
+  License: see https://git.zx2c4.com/wintun/about/
+  Source: https://www.wintun.net/
+
+These components are redistributed unmodified as required by their licenses.
