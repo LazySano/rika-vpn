@@ -2,6 +2,7 @@ use crate::app::state::AppState;
 use crate::core::profile::{self, ProfileMeta};
 use crate::core::wg_config;
 use crate::infra::elevate;
+use crate::infra::google_auth::{self, GoogleUser};
 use crate::infra::net_monitor::{self, NetCounters, ProbeResult};
 use crate::infra::ovpn_engine::OvpnHandle;
 use crate::infra::system;
@@ -65,6 +66,11 @@ pub fn disconnect(state: tauri::State<AppState>) -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+#[tauri::command]
+pub fn google_login(client_id: String) -> Result<GoogleUser, String> {
+    google_auth::login(&client_id)
 }
 
 #[tauri::command]

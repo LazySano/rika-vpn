@@ -1,24 +1,13 @@
 <script>
-  import { Eye, EyeOff, Mail, Lock, User } from "@lucide/svelte";
   import Logo from "./Logo.svelte";
-  import { auth, login, register, loginWithGoogle } from "$lib/stores/auth.svelte.js";
+  import { auth, loginWithGoogle } from "$lib/stores/auth.svelte.js";
+  import { ShieldCheck, Zap, Globe, LoaderCircle } from "@lucide/svelte";
 
-  let mode = $state("login");
-  let name = $state("");
-  let email = $state("");
-  let password = $state("");
-  let show = $state(false);
-
-  function switchMode(m) {
-    mode = m;
-    auth.error = null;
-  }
-
-  async function submit(event) {
-    event.preventDefault();
-    if (mode === "login") await login(email, password);
-    else await register(name, email, password);
-  }
+  const features = [
+    { icon: ShieldCheck, text: "اتصال مشفّر وآمن" },
+    { icon: Zap, text: "سرعة عالية عبر WireGuard" },
+    { icon: Globe, text: "سيرفرات حول العالم" },
+  ];
 </script>
 
 <div
@@ -29,87 +18,62 @@
     <div class="absolute bottom-0 end-[20%] h-80 w-80 rounded-full bg-danger/10 blur-3xl"></div>
   </div>
 
-  <div class="relative z-10 w-full max-w-md rounded-[28px] border border-line bg-surface p-8 shadow-xl">
-    <div class="flex justify-center"><Logo size={40} /></div>
-    <p class="mt-3 text-center text-sm text-muted">اتصال آمن وسريع حول العالم</p>
+  <div
+    class="relative z-10 w-full max-w-md rounded-[28px] border border-line bg-surface p-8 text-center shadow-xl"
+  >
+    <div class="flex justify-center"><Logo size={46} /></div>
 
-    <div class="mt-6 grid grid-cols-2 gap-1 rounded-2xl bg-surface-2 p-1">
-      <button
-        onclick={() => switchMode("login")}
-        class="rounded-xl py-2 text-sm font-bold transition {mode === 'login' ? 'bg-brand text-white' : 'text-muted'}"
-      >
-        تسجيل الدخول
-      </button>
-      <button
-        onclick={() => switchMode("register")}
-        class="rounded-xl py-2 text-sm font-bold transition {mode === 'register' ? 'bg-brand text-white' : 'text-muted'}"
-      >
-        إنشاء حساب
-      </button>
-    </div>
-
-    <form onsubmit={submit} class="mt-6 space-y-3">
-      {#if mode === "register"}
-        <label class="flex items-center gap-3 rounded-2xl bg-surface-2 px-4 py-3">
-          <User size={18} class="shrink-0 text-muted" />
-          <input
-            bind:value={name}
-            placeholder="الاسم الكامل"
-            class="w-full bg-transparent text-sm outline-none"
-          />
-        </label>
-      {/if}
-      <label class="flex items-center gap-3 rounded-2xl bg-surface-2 px-4 py-3">
-        <Mail size={18} class="shrink-0 text-muted" />
-        <input
-          bind:value={email}
-          type="email"
-          placeholder="البريد الإلكتروني"
-          dir="ltr"
-          class="w-full bg-transparent text-sm outline-none"
-        />
-      </label>
-      <label class="flex items-center gap-3 rounded-2xl bg-surface-2 px-4 py-3">
-        <Lock size={18} class="shrink-0 text-muted" />
-        <input
-          bind:value={password}
-          type={show ? "text" : "password"}
-          placeholder="كلمة المرور"
-          dir="ltr"
-          class="w-full bg-transparent text-sm outline-none"
-        />
-        <button
-          type="button"
-          onclick={() => (show = !show)}
-          aria-label="إظهار كلمة المرور"
-          class="text-muted"
-        >
-          {#if show}<EyeOff size={16} />{:else}<Eye size={16} />{/if}
-        </button>
-      </label>
-
-      {#if auth.error}
-        <p class="rounded-xl bg-danger/10 px-3 py-2 text-xs text-danger">{auth.error}</p>
-      {/if}
-
-      <button
-        type="submit"
-        disabled={auth.busy}
-        class="w-full rounded-2xl bg-brand py-3 font-bold text-white transition hover:bg-brand-hover disabled:opacity-70"
-      >
-        {mode === "login" ? "دخول" : "إنشاء الحساب"}
-      </button>
-    </form>
-
-    <div class="my-4 flex items-center gap-3 text-xs text-muted">
-      <span class="h-px flex-1 bg-line"></span> أو <span class="h-px flex-1 bg-line"></span>
-    </div>
+    <h1 class="mt-5 text-2xl font-extrabold text-ink">أهلًا بك في RikaVPN</h1>
+    <p class="mt-2 text-sm text-muted">
+      سجّل الدخول بحساب Google للبدء — بلا كلمات مرور ولا بيانات إضافية.
+    </p>
 
     <button
       onclick={loginWithGoogle}
-      class="flex w-full items-center justify-center gap-3 rounded-2xl border border-line py-3 text-sm font-semibold text-ink transition hover:bg-surface-2"
+      disabled={auth.busy}
+      class="mt-7 flex w-full items-center justify-center gap-3 rounded-2xl border border-line bg-surface px-4 py-3.5 text-base font-bold text-ink transition hover:bg-surface-2 disabled:opacity-70"
     >
-      <span class="text-base font-black text-[#4285F4]">G</span> المتابعة باستخدام Google
+      {#if auth.busy}
+        <LoaderCircle size={20} class="animate-spin text-brand" /> جارٍ الدخول…
+      {:else}
+        <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true">
+          <path
+            fill="#EA4335"
+            d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"
+          />
+          <path
+            fill="#4285F4"
+            d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"
+          />
+          <path
+            fill="#FBBC05"
+            d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24s.92 7.54 2.56 10.78l7.97-6.19z"
+          />
+          <path
+            fill="#34A853"
+            d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
+          />
+        </svg>
+        المتابعة باستخدام Google
+      {/if}
     </button>
+
+    {#if auth.error}
+      <p class="mt-3 rounded-xl bg-danger/10 px-3 py-2 text-xs leading-5 text-danger">
+        {auth.error}
+      </p>
+    {/if}
+
+    <div class="mt-7 grid grid-cols-3 gap-3 border-t border-line pt-6 text-center">
+      {#each features as f}
+        {@const Icon = f.icon}
+        <div class="flex flex-col items-center gap-2">
+          <span class="grid h-10 w-10 place-items-center rounded-full bg-brand-soft text-brand">
+            <Icon size={18} />
+          </span>
+          <span class="text-[11px] leading-4 text-muted">{f.text}</span>
+        </div>
+      {/each}
+    </div>
   </div>
 </div>

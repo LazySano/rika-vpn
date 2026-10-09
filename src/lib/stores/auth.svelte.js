@@ -1,4 +1,6 @@
+import { invoke } from "@tauri-apps/api/core";
 import { load, save } from "./storage.js";
+import { GOOGLE_CLIENT_ID } from "../config.js";
 
 export const auth = $state({
   session: load("rika-session", null),
@@ -6,33 +8,12 @@ export const auth = $state({
   busy: false,
 });
 
-function users() {
-  return load("rika-users", []);
-}
-
-function saveUsers(list) {
-  save("rika-users", list);
-}
-
-async function hash(text) {
-  try {
-    if (typeof crypto !== "undefined" && crypto.subtle) {
-      const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
-      return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
-    }
-  } catch {
-    /* fallthrough */
-  }
-  let h = 5381;
-  for (let i = 0; i < text.length; i++) h = ((h << 5) + h + text.charCodeAt(i)) >>> 0;
-  return "f" + h.toString(16);
-}
-
 function setSession(user) {
   auth.session = {
     id: user.id,
     name: user.name,
     email: user.email,
+    avatar: user.avatar ?? null,
     provider: user.provider,
     createdAt: user.createdAt,
   };
@@ -50,67 +31,29 @@ export function userInitials() {
   return auth.session ? initials(auth.session.name) : "؟";
 }
 
-export async function register(name, email, password) {
+export async function loginWithGoogle() {
   auth.error = null;
-  name = (name || "").trim();
-  email = (email || "").trim().toLowerCase();
-  if (name.length < 2) {
-    auth.error = "الاسم قصير جدًا";
-    return false;
-  }
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-    auth.error = "البريد الإلكتروني غير صالح";
-    return false;
-  }
-  if ((password || "").length < 6) {
-    auth.error = "كلمة المرور يجب ألا تقل عن 6 أحرف";
-    return false;
-  }
-  const list = users();
-  if (list.some((u) => u.email === email)) {
-    auth.error = "هذا البريد مسجَّل مسبقًا";
-    return false;
-  }
   auth.busy = true;
-  const passwordHash = await hash(email + ":" + password);
-  auth.busy = false;
-  const user = {
-    id: "u_" + Date.now().toString(36),
-    name,
-    email,
-    passwordHash,
-    provider: "email",
-    createdAt: Date.now(),
-  };
-  list.push(user);
-  saveUsers(list);
-  setSession(user);
-  return true;
-}
-
-export async function login(email, password) {
-  auth.error = null;
-  email = (email || "").trim().toLowerCase();
-  const user = users().find((u) => u.email === email);
-  if (!user) {
-    auth.error = "لا يوجد حساب بهذا البريد الإلكتروني";
+  try {
+    const user = await invoke("google_login", { clientId: GOOGLE_CLIENT_ID });
+    auth.busy = false;
+    setSession({
+      id: "g_" + user.sub,
+      name: user.name,
+      email: user.email,
+      avatar: user.picture,
+      provider: "google",
+      createdAt: Date.now(),
+    });
+    return true;
+  } catch (e) {
+    auth.busy = false;
+    const message = String(e);
+    auth.error = message.includes("GOOGLE_CLIENT_ID_MISSING")
+      ? "لم يتم ضبط معرّف Google Client ID بعد."
+      : message;
     return false;
   }
-  auth.busy = true;
-  const passwordHash = await hash(email + ":" + password);
-  auth.busy = false;
-  if (passwordHash !== user.passwordHash) {
-    auth.error = "كلمة المرور غير صحيحة";
-    return false;
-  }
-  setSession(user);
-  return true;
-}
-
-export function loginWithGoogle() {
-  auth.error =
-    "تسجيل الدخول عبر Google يحتاج إعداد معرّف OAuth (Client ID) في الإعدادات. يمكنك الآن إنشاء حساب بالبريد.";
-  return false;
 }
 
 export function logout() {

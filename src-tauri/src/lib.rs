@@ -23,6 +23,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             app::commands::parse_profile,
+            app::commands::google_login,
             app::commands::is_elevated,
             app::commands::relaunch_elevated,
             app::commands::connect_wireguard,
