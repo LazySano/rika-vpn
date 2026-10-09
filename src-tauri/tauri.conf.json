@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "RikaVPN",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "identifier": "com.lazysano.rikavpn",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -27,7 +27,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDc3MDg4NEMzQzVGODgxQzkKUldUSmdmakZ3NFFJZHl3RllrOEM2SVRXbm0yZ3ZoMXd3S3dMc3U2Qk54bGdqM05VcjFzNS9iVFUK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEVGN0IzNjhDODNEQjVEQjcKUldTM1hkdURqRFo3NzJUb0lIbjdkK0k4U0xiRUdlVGo1ZmZYYU5MbTNTWmF5MXUwMWZXUkNiR28K",
       "endpoints": [
         "https://github.com/LazySano/rika-vpn/releases/latest/download/latest.json"
       ]
