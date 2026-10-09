@@ -96,13 +96,19 @@ impl OvpnHandle {
                     if low.contains("fatal")
                         || low.contains("cannot open")
                         || low.contains("exiting due to")
-                        || low.contains("error: ")
+                        || low.contains("error")
+                        || low.contains("failed")
                     {
                         let _ = child.kill();
-                        return Err(format!("فشل OpenVPN: {line}"));
+                        let mut context = tail.join("\n");
+                        if !context.is_empty() {
+                            context.push('\n');
+                        }
+                        context.push_str(&line);
+                        return Err(format!("فشل OpenVPN:\n{context}"));
                     }
                     tail.push(line);
-                    if tail.len() > 25 {
+                    if tail.len() > 40 {
                         tail.remove(0);
                     }
                 }
