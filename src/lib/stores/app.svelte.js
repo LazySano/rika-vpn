@@ -73,6 +73,7 @@ export function importConfig(name, text, protocol) {
   };
   app.profiles = [profile, ...app.profiles];
   save("rika-profiles", app.profiles);
+  selectProfile(profile.id);
   push("success", "تم استيراد ملف تعريف", `${profile.name} — ${protocolLabel(profile.protocol)}`);
   return profile;
 }
@@ -320,7 +321,10 @@ export async function connect() {
     return;
   }
 
-  app.error = "لا يوجد ملف تعريف. استورد ملف WireGuard/OpenVPN أولًا من الإعدادات.";
+  app.error =
+    app.profiles.length > 0
+      ? "لم تختر ملف تعريف. اختره من صفحة السيرفرات."
+      : "لا يوجد ملف تعريف. استورد ملف WireGuard/OpenVPN أولًا من الإعدادات.";
   push("warning", "لا يمكن الاتصال", app.error);
 }
 
