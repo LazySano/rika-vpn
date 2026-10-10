@@ -148,14 +148,19 @@ impl OvpnHandle {
                     if line.contains("Initialization Sequence Completed") {
                         break;
                     }
-                    if low.contains("fatal")
+                    let fatal = low.contains("exiting due to fatal error")
+                        || low.starts_with("error")
+                        || low.contains("options error")
                         || low.contains("cannot open")
-                        || low.contains("exiting due to")
-                        || low.contains("error")
-                        || low.contains("failed")
-                        || low.contains("no tap")
+                        || low.contains("all tap-windows")
+                        || low.contains("no tap-windows")
                         || low.contains("no adapters")
-                    {
+                        || low.contains("auth_failed")
+                        || low.contains("authentication failed")
+                        || low.contains("cannot load")
+                        || low.contains("tls error")
+                        || low.contains("fatal");
+                    if fatal {
                         let _ = child.kill();
                         adapter_alive.store(false, Ordering::SeqCst);
                         let mut context = tail.join("\n");
