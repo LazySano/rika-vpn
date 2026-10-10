@@ -13,11 +13,26 @@ pub struct VpnGateServer {
 }
 
 pub fn fetch(limit: usize, country: Option<String>) -> Result<Vec<VpnGateServer>, String> {
-    let body = ureq::get("https://www.vpngate.net/api/iphone/")
-        .call()
-        .map_err(|e| format!("تعذّر جلب قائمة VPNGate: {e}"))?
-        .into_string()
-        .map_err(|e| e.to_string())?;
+    let urls = [
+        "https://r.jina.ai/http://www.vpngate.net/api/iphone/",
+        "https://www.vpngate.net/api/iphone/",
+    ];
+    let mut body: Option<String> = None;
+    let mut last_err = String::new();
+    for url in urls {
+        match ureq::get(url).set("User-Agent", "Mozilla/5.0").call() {
+            Ok(resp) => match resp.into_string() {
+                Ok(text) if text.contains("#HostName") || text.contains("OpenVPN_ConfigData") => {
+                    body = Some(text);
+                    break;
+                }
+                Ok(_) => last_err = format!("رد غير متوقّع من {url}"),
+                Err(e) => last_err = e.to_string(),
+            },
+            Err(e) => last_err = e.to_string(),
+        }
+    }
+    let body = body.ok_or_else(|| format!("تعذّر جلب قائمة VPNGate: {last_err}"))?;
 
     let filter = country.map(|c| c.to_ascii_uppercase());
     let mut out: Vec<VpnGateServer> = Vec::new();
