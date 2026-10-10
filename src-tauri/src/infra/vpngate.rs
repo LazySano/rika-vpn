@@ -1,4 +1,5 @@
 use serde::Serialize;
+use std::process::Command;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct VpnGateServer {
@@ -12,24 +13,41 @@ pub struct VpnGateServer {
     pub config: String,
 }
 
+fn curl_get(url: &str) -> Result<String, String> {
+    let output = Command::new("curl.exe")
+        .args([
+            "-s",
+            "-L",
+            "--max-time",
+            "55",
+            "-A",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+            url,
+        ])
+        .output()
+        .map_err(|e| format!("curl: {e}"))?;
+    if !output.status.success() {
+        return Err(format!("curl exit {:?}", output.status.code()));
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+}
+
 pub fn fetch(limit: usize, country: Option<String>) -> Result<Vec<VpnGateServer>, String> {
     let urls = [
         "https://r.jina.ai/http://www.vpngate.net/api/iphone/",
         "https://www.vpngate.net/api/iphone/",
+        "http://www.vpngate.net/api/iphone/",
     ];
     let mut body: Option<String> = None;
     let mut last_err = String::new();
     for url in urls {
-        match ureq::get(url).set("User-Agent", "Mozilla/5.0").call() {
-            Ok(resp) => match resp.into_string() {
-                Ok(text) if text.contains("#HostName") || text.contains("OpenVPN_ConfigData") => {
-                    body = Some(text);
-                    break;
-                }
-                Ok(_) => last_err = format!("رد غير متوقّع من {url}"),
-                Err(e) => last_err = e.to_string(),
-            },
-            Err(e) => last_err = e.to_string(),
+        match curl_get(url) {
+            Ok(text) if text.contains("#HostName") || text.contains("OpenVPN_ConfigData") => {
+                body = Some(text);
+                break;
+            }
+            Ok(_) => last_err = format!("رد غير متوقّع من {url}"),
+            Err(e) => last_err = e,
         }
     }
     let body = body.ok_or_else(|| format!("تعذّر جلب قائمة VPNGate: {last_err}"))?;
