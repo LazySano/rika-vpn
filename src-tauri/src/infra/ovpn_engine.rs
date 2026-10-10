@@ -1,29 +1,17 @@
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc, Arc, Mutex};
 use std::time::{Duration, Instant};
 
 const ADAPTER_NAME: &str = "RikaVPN OVPN";
 
-fn ensure_wintun_adapter(wintun_path: Option<PathBuf>) -> Result<(), String> {
-    let dll = wintun_path.ok_or("لم يتم العثور على wintun.dll")?;
-    if !dll.exists() {
-        return Err("لم يتم العثور على wintun.dll".into());
-    }
-    let wintun = unsafe { wintun::load_from_path(&dll) }
-        .map_err(|e| format!("فشل تحميل wintun.dll: {e}"))?;
-    if wintun::Adapter::open(&wintun, ADAPTER_NAME).is_ok() {
-        return Ok(());
-    }
-    wintun::Adapter::create(&wintun, ADAPTER_NAME, ADAPTER_NAME, None)
-        .map_err(|e| format!("فشل إنشاء محوّل Wintun: {e}"))?;
-    Ok(())
-}
-
 pub struct OvpnHandle {
     child: Arc<Mutex<Option<Child>>>,
     config_path: PathBuf,
+    adapter_alive: Arc<AtomicBool>,
+    adapter_thread: Option<std::thread::JoinHandle<()>>,
 }
 
 fn find_openvpn(preferred: Option<PathBuf>) -> Option<PathBuf> {
@@ -59,11 +47,56 @@ impl OvpnHandle {
         wintun_path: Option<PathBuf>,
     ) -> Result<OvpnHandle, String> {
         let bin = find_openvpn(preferred).ok_or_else(|| "OPENVPN_MISSING".to_string())?;
-        ensure_wintun_adapter(wintun_path)?;
+
         let dir = std::env::temp_dir().join("rikavpn");
         std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
         let config_path = dir.join("client.ovpn");
         std::fs::write(&config_path, text).map_err(|e| e.to_string())?;
+
+        // Keep a Wintun adapter alive for the whole session so OpenVPN can use it.
+        let adapter_alive = Arc::new(AtomicBool::new(true));
+        let (ready_tx, ready_rx) = mpsc::channel::<Result<(), String>>();
+        let alive = adapter_alive.clone();
+        let adapter_name = ADAPTER_NAME.to_string();
+        let adapter_thread = std::thread::spawn(move || {
+            let dll = match wintun_path {
+                Some(p) if p.exists() => p,
+                _ => {
+                    let _ = ready_tx.send(Err("لم يتم العثور على wintun.dll".into()));
+                    return;
+                }
+            };
+            let wintun = match unsafe { wintun::load_from_path(&dll) } {
+                Ok(w) => w,
+                Err(e) => {
+                    let _ = ready_tx.send(Err(format!("فشل تحميل wintun.dll: {e}")));
+                    return;
+                }
+            };
+            let adapter = match wintun::Adapter::open(&wintun, &adapter_name) {
+                Ok(a) => a,
+                Err(_) => match wintun::Adapter::create(&wintun, &adapter_name, &adapter_name, None) {
+                    Ok(a) => a,
+                    Err(e) => {
+                        let _ = ready_tx.send(Err(format!("فشل إنشاء محوّل Wintun: {e}")));
+                        return;
+                    }
+                },
+            };
+            let _ = ready_tx.send(Ok(()));
+            while alive.load(Ordering::SeqCst) {
+                std::thread::sleep(Duration::from_millis(400));
+            }
+            drop(adapter);
+            let _ = &wintun;
+        });
+
+        match ready_rx.recv_timeout(Duration::from_secs(15)) {
+            Ok(Ok(())) => {}
+            Ok(Err(e)) => return Err(e),
+            Err(_) => return Err("انتهت مهلة إنشاء محوّل Wintun".into()),
+        }
+        std::thread::sleep(Duration::from_millis(900));
 
         let working_dir = bin.parent().map(|p| p.to_path_buf());
         let mut command = Command::new(&bin);
@@ -73,8 +106,9 @@ impl OvpnHandle {
             .arg("--windows-driver")
             .arg("wintun")
             .arg("--dev-node")
-            .arg(ADAPTER_NAME);
-        command.stdout(Stdio::piped()).stderr(Stdio::piped());
+            .arg(ADAPTER_NAME)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
         if let Some(d) = working_dir {
             command.current_dir(d);
         }
@@ -119,8 +153,11 @@ impl OvpnHandle {
                         || low.contains("exiting due to")
                         || low.contains("error")
                         || low.contains("failed")
+                        || low.contains("no tap")
+                        || low.contains("no adapters")
                     {
                         let _ = child.kill();
+                        adapter_alive.store(false, Ordering::SeqCst);
                         let mut context = tail.join("\n");
                         if !context.is_empty() {
                             context.push('\n');
@@ -135,14 +172,17 @@ impl OvpnHandle {
                 }
                 Err(mpsc::RecvTimeoutError::Timeout) => {}
                 Err(mpsc::RecvTimeoutError::Disconnected) => {
+                    adapter_alive.store(false, Ordering::SeqCst);
                     return Err(format!("توقف OpenVPN. آخر السجل:\n{}", tail.join("\n")));
                 }
             }
             if let Ok(Some(_)) = child.try_wait() {
+                adapter_alive.store(false, Ordering::SeqCst);
                 return Err(format!("توقف OpenVPN مبكرًا. آخر السجل:\n{}", tail.join("\n")));
             }
             if started.elapsed() > Duration::from_secs(45) {
                 let _ = child.kill();
+                adapter_alive.store(false, Ordering::SeqCst);
                 return Err(format!(
                     "انتهت مهلة الاتصال بـ OpenVPN. آخر السجل:\n{}",
                     tail.join("\n")
@@ -161,6 +201,8 @@ impl OvpnHandle {
         Ok(OvpnHandle {
             child: Arc::new(Mutex::new(Some(child))),
             config_path,
+            adapter_alive,
+            adapter_thread: Some(adapter_thread),
         })
     }
 
@@ -179,6 +221,10 @@ impl OvpnHandle {
                 let _ = child.kill();
                 let _ = child.wait();
             }
+        }
+        self.adapter_alive.store(false, Ordering::SeqCst);
+        if let Some(t) = self.adapter_thread.take() {
+            let _ = t.join();
         }
         let _ = std::fs::remove_file(&self.config_path);
     }
