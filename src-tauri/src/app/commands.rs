@@ -7,6 +7,7 @@ use crate::infra::google_auth::{self, GoogleUser};
 use crate::infra::net_monitor::{self, NetCounters, ProbeResult};
 use crate::infra::ovpn_engine::OvpnHandle;
 use crate::infra::system;
+use crate::infra::vpngate::{self, VpnGateServer};
 use crate::infra::wg_engine::{EngineHandle, EngineInfo, EngineStats};
 use tauri::Manager;
 
@@ -97,6 +98,14 @@ pub fn google_login(client_id: String, client_secret: String) -> Result<GoogleUs
 #[tauri::command]
 pub fn geoip(host: String) -> Result<GeoInfo, String> {
     geoip::lookup(&host)
+}
+
+#[tauri::command]
+pub fn fetch_vpngate(
+    limit: Option<usize>,
+    country: Option<String>,
+) -> Result<Vec<VpnGateServer>, String> {
+    vpngate::fetch(limit.unwrap_or(200), country)
 }
 
 #[tauri::command]

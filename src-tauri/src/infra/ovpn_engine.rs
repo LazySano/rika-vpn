@@ -107,6 +107,12 @@ impl OvpnHandle {
             .arg("wintun")
             .arg("--dev-node")
             .arg(ADAPTER_NAME)
+            .arg("--block-outside-dns")
+            .arg("--block-ipv6")
+            .arg("--tun-mtu")
+            .arg("1380")
+            .arg("--mssfix")
+            .arg("1360")
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
         if let Some(d) = working_dir {

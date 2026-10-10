@@ -4,6 +4,7 @@
     User,
     Gauge,
     RadioTower,
+    Globe,
     Info,
     Settings,
     LogOut,
@@ -19,6 +20,7 @@
     { id: "profile", label: "ملفي الشخصي", icon: User },
     { id: "speed", label: "اختبار السرعة", icon: Gauge },
     { id: "network", label: "تحليل الشبكة", icon: RadioTower },
+    { id: "community", label: "سيرفرات مجانية", icon: Globe },
   ];
 
   const footItems = [

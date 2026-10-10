@@ -45,8 +45,48 @@ export const app = $state({
   connection: { state: "disconnected", seconds: 0, ip: "—" },
 });
 
+export const community = $state({
+  list: [],
+  loading: false,
+  error: null,
+  filter: "JP",
+});
+
 let lastCount = null;
 let sampleTick = 0;
+
+export async function fetchVpnGate() {
+  community.loading = true;
+  community.error = null;
+  try {
+    community.list = await invoke("fetch_vpngate", {
+      limit: 200,
+      country: community.filter || null,
+    });
+  } catch (e) {
+    community.error = String(e);
+  } finally {
+    community.loading = false;
+  }
+}
+
+export async function connectVpnGate(server) {
+  let text = "";
+  try {
+    text = atob(server.config);
+  } catch {
+    text = "";
+  }
+  if (!text) {
+    community.error = "ملف السيرفر غير صالح";
+    return;
+  }
+  importConfig(`VPNGate - ${server.hostname}`, text, "openvpn", {
+    country_code: server.country_short,
+    city: server.country_long,
+  });
+  await connect();
+}
 
 export function setPage(page) {
   app.page = page;

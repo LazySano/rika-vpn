@@ -8,6 +8,7 @@
   import ProfilePage from "$lib/pages/ProfilePage.svelte";
   import SpeedTestPage from "$lib/pages/SpeedTestPage.svelte";
   import NetworkPage from "$lib/pages/NetworkPage.svelte";
+  import CommunityPage from "$lib/pages/CommunityPage.svelte";
   import AboutPage from "$lib/pages/AboutPage.svelte";
   import SettingsPage from "$lib/pages/SettingsPage.svelte";
   import {
@@ -27,6 +28,7 @@
     profile: ProfilePage,
     speed: SpeedTestPage,
     network: NetworkPage,
+    community: CommunityPage,
     about: AboutPage,
     settings: SettingsPage,
   };
